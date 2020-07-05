@@ -1,0 +1,411 @@
+---
+title: "Week 4 Group Lab"
+author: "BUS 32100" 
+date: "Due 11:59PM Oct 24,25 2019"
+output: 
+  tufte::tufte_html:
+    tufte_variant: "envisioned"
+    highlight: pygments
+---
+
+Name:  
+Collaborated with: 
+
+
+This lab is to due 11:59PM Oct 24,25 2019. You can collaborate with your classmates, but you must identify their names above, and you must submit **your own** lab as an knitted HTML file on Canvas.
+
+In some cases, a **incomplete code** is given to guide you in the right direction. However, you will need to fill in the blanks in order to run the code block. Make sure to fill **all the blanks**, or comment them out, before you knit your R markdown file. Otherwise, it will return knitting errors.
+
+
+```{r load-packages, include=FALSE }
+if (!require("tufte")) install.packages("tufte", repos = "http://cran.us.r-project.org")
+library(tidyverse)
+library(broom)
+library(tufte)
+```
+
+
+Rio Olympics data set revisited
+===
+Load data
+
+```{r}
+rio = read.csv("https://raw.githubusercontent.com/BUSN32100/data_files/master/rio.csv")
+```
+
+- **1a.** Using `count()` check which country brought the most athletes, and how many was this?  What are the 5 most represented countries? Do the same for the men and women separately. 
+
+```{r}
+
+# count(rio)
+# #There is a total of 11538 athletes. 
+# summary(rio$nationality) %>% head(5)
+# #Got the top 5 countries using the count function and the summary function
+rio %>% count(nationality,sort=TRUE) %>% head(5)
+# 
+# #Now lets look at the top 5 countries with the most women & men
+rio %>% filter(sex == "female") %>% count(nationality,sort=TRUE) %>% head(5)
+rio %>% filter(sex == "male") %>% count(nationality,sort=TRUE) %>% head(5)
+
+```
+
+- **1b.** Use `summarise` and `sum`,  check how many medals of each type---gold, silver, bronze---were awarded at this Olympics? 
+```{r eval=T}
+# #1b)
+rio %>% 
+summarise(gold = sum(gold), 
+          silver = sum(silver),
+           bronze = sum(silver))
+```
+- **1c.** Use `mutate` to create a column called `total` which adds the number of gold, silver, and bronze medals for each athlete, and add this column to `rio`. Who are the top 10 athletes with the most number of medals and how many was this? 
+
+```{r eval=T}
+#1c)
+rio %>% 
+  mutate(total = gold + silver + bronze) %>% arrange(desc(total)) %>% head(10)
+
+```
+
+- **1d.** Create a new numeric variable called `age`, equal to 2016 - (the year of birth). Use `group_by`,  `summarise` to find the minimum and maximum age of each sports, and order results by the asceding order of minimun age
+```{r eval=T}
+
+rio %>% group_by(sport) %>% mutate(age = 2016 - year_of_birth) %>% summarise(maxage=max(age),minage=min(age)) %>% arrange(desc(minage))
+#When using summarise, only columns specifies are printed out. 
+
+```
+
+**Challenge** Create a new summary table call `sports`, with a column called `n_participants` which contains the number of participants in each sport, a column called `n_gold` which contains the number of gold medels in each sports. Then calculate the ratio of the number of gold medals to participants for each sport. Which sport has the highest ratio? Which has the lowest? 
+
+```{marginfigure}
+*Hint* `n()` counts the total number of rows in each group, `slice(c(1,n()))` will return the first and last row
+```
+
+```{r}
+rio %>% group_by(sport) %>% summarise(n_participants =n(),n_gold=sum(gold),propgold=n_gold/n_participants) %>% arrange(desc(propgold))
+#Gymnastics is the easiest to win gold because it's a team sport. golf is the hardest to win gold lol. 
+
+```
+
+
+# Bike rentals in DC
+
+## Data
+```{r, message=FALSE, warning=F}
+bike <- read_csv("https://raw.githubusercontent.com/BUSN32100/data_files/master/bikeshare-day.csv")
+```
+
+The data include daily bike rental counts (by members and casual users) of Capital Bikeshare in Washington, DC in 2011 and 2012 as well as weather information on these days.
+
+```{marginfigure}
+Source: [UCI Machine Learning Repository - Bike Sharing Dataset](http://archive.ics.uci.edu/ml/datasets/Bike+Sharing+Dataset)
+
+The original data sources are http://capitalbikeshare.com/system-data and http://www.freemeteo.com.
+```
+
+The codebook is below:
+
+| Variable name | Description 
+|:--------|:-------------------------------------------------------------
+| `instant`		| record index
+| `dteday` 		| date
+| `season` 		| season (1:winter, 2:spring, 3:summer, 4:fall)
+| `yr` 		    | year (0: 2011, 1:2012)
+| `mnth` 		  | month (1 to 12)
+| `holiday` 	| weather day is holiday or not (extracted from http://dchr.dc.gov/page/holiday-schedule)
+| `weekday` 	| day of the week
+| `workingday`| if day is neither weekend nor holiday is 1, otherwise is 0.
+| `weathersit`| 1: Clear, Few clouds, Partly cloudy, Partly cloudy
+|             | 2: Mist + Cloudy, Mist + Broken clouds, Mist + Few clouds, Mist
+|             | 3: Light Snow, Light Rain + Thunderstorm + Scattered clouds, Light Rain + Scattered clouds
+|             | 4: Heavy Rain + Ice Pallets + Thunderstorm + Mist, Snow + Fog
+| `temp` 			| Normalized temperature in Celsius. The values are divided by 41 (max)
+| `atemp`			| Normalized feeling temperature in Celsius. The values are divided by 50 (max)
+| `hum` 			| Normalized humidity. The values are divided by 100 (max)
+| `windspeed`	| Normalized wind speed. The values are divided by 67 (max)
+| `casual`		| Count of casual users
+| `registered`| Count of registered users
+| `cnt` 		  | Count of total rental bikes including both casual and registered
+
+
+## Data wrangling
+
+- **2a.** Find the top three dates that had the highest total rental. In addition to number of total rentals also display the `date`, `weekday`, and `holiday`. What about three dates with the highest casual rentals? 
+```{r}
+#total rentals
+bike %>% arrange(desc(cnt)) %>% select(weekday,holiday,dteday,cnt) %>% head(3) 
+#Total casual
+bike %>% arrange(desc(casual)) %>% select(weekday,holiday,dteday,casual) %>% head(3) 
+
+```
+
+- **2b.** Find the top three dates that had the highest total rental during the spring season. In addition to number of total rentals also display the `date`, `weekday`, and `holiday`. 
+```{r}
+bike %>% subset(season == 1)%>%  arrange(desc(cnt)) %>% select(weekday,holiday,dteday,cnt) %>% head(3) 
+```
+
+- **2c.** Find the holidays in 2011 and order them by total rentals. In addition to total rental and date, also display the weather and temperatures.
+```{r}
+bike %>% subset(holiday == TRUE) %>%  filter(yr ==0) %>% arrange(desc(cnt)) %>%  select(weekday,holiday,dteday,cnt) %>% head(3) 
+
+```
+
+
+- **2d.** Recode the `season` variable to be a factor with meaningful level names as outlined in the codebook, with spring as the baseline level. You will need to use `mutate` with `case_when` and then refactor the `season` variable to get spring as the baseline level
+```{r}
+bike <- read_csv("https://raw.githubusercontent.com/BUSN32100/data_files/master/bikeshare-day.csv")
+
+bike <- bike %>%
+mutate(season = case_when(season == 1 ~ "spring",
+      season == 2 ~ "summer",
+      season == 3 ~ "fall",
+      season == 4 ~ "winter")) 
+
+bike$season=factor(bike$season,levels=c("spring", "summer", "fall", "winter"), ordered=TRUE)
+
+bike <- bike %>%
+  mutate(weathersit=case_when(weathersit==1 ~ "1:Clear", 
+                              weathersit==2 ~ "2:Mist",
+                              weathersit==3 ~ "3:Light Snow",
+                              weathersit==4 ~ "4:Heavy Rain"),
+         temp=temp*41,
+         atemp=atemp*50,
+         hum=hum*100,
+         windspeed=windspeed *67)
+
+```
+
+- **2e.**  Calculate raw temperature, feeling temperature, humidity, and windspeed as their values given in the dataset multiplied by the maximum raw values stated in the codebook for each variable. Instead of writing over the existing variables, create new ones with concise but informative names.
+```{r}
+bike <- mutate(bike,
+                   rawtemp = temp*0.861667,
+                   feeltemp = atemp*0.840896,
+                   windspeedmax = windspeed*0.507463)
+  
+```
+
+- **2f.**  Check that the sum of `casual` and `registered` adds up to `cnt` for each record.
+
+```{r}
+bike<-mutate(bike,
+             checking = casual + registered - cnt)
+
+summary(bike$checking)
+
+#Yup!!!casual and registered adds up to cnt for each record!!
+```
+
+## Exploratory data analysis
+
+ - **3a.** Recreate the following visualization (see the instruction html), and interpret it in context of the data. 
+```{marginfigure}
+*Hint:* You will need to use one of the variables you created above.
+```
+
+```{r fig.width=12, eval=T, echo=T}
+
+ggplot(bike, mapping=aes(x = dteday, y = cnt, size = 1,
+    color = temp)) +geom_point()
+
+```
+
+ - **3b.**  Create a visualization displaying the relationship between bike rentals and season. Interpret the plot in context of the data.
+
+```{r fig.width=9}
+ggplot(bike, mapping=aes(x = bike$season, y = cnt, size=yr, 
+    color = yr)) +geom_point()+geom_boxplot(fill="turquoise1")
+#Hmmm this visualisation isn't so great. Let''s try again. 
+
+ggplot(bike, mapping = aes(bike$season, cnt)) +
+  geom_boxplot(color = "black", fill = "hotpink")+
+  geom_point(color ="magenta", size = 3)
+
+#Looks like bike rentals keep going up from until winter. 
+
+```
+
+## Modelling
+
+ - **4a.**  Fit a linear model predicting total daily bike rentals from daily temperature. Write the linear model, interpret the slope and the intercept in context of the data.
+
+```{r}
+tempmodel <- lm(bike$cnt ~ bike$temp)
+print(tempmodel)
+
+#Looks like there is a positive relationship between temperature and
+#bike rentals. Also even if temp=0 looks like some people still rent bikes. 
+```
+
+ - **4b.** Fit another linear model predicting total daily bike rentals from daily feeling temperature. Write the linear model, interpret the slope and the intercept in context of the data. Is temperature or feeling temperature a better predictor of bike rentals? Explain which criteria you used and why.
+```{r}
+atempmodel <- lm(bike$cnt ~ bike$atemp)
+print(atempmodel)
+
+#Looks like there is an even stronger positive 
+#relationship for feeling temperature than 
+#regular temperature. Again, even if temp=0 looks like 
+#some people still rent bikes. This time,
+
+plot(x = bike$temp,
+     y = bike$cnt,
+     main = "Temperature and Bike Rentals",
+     xlab = "Temperature",
+     ylab = "Bike Rentals",
+     xlim = c(0, 45),
+     ylim = c(0, 9000),
+     col = "deepskyblue",
+     pch = 18)
+
+points(x = bike$atemp, y = bike$cnt, xlim = c(0, 1),
+     ylim = c(0, 9000), pch = 18, col = "magenta")
+
+legend("bottomright",
+legend = c("Temperature", "Feeling Temperature"),
+col = c("deepskyblue", "magenta"),
+pch = c(18, 18),
+bg = "white"
+)
+
+summary(tempmodel)$r.squared 
+summary(atempmodel)$r.squared 
+
+mean(bike$temp)
+mean(bike$atemp)
+
+#Overall looking at the plots and r squared values of the regressions,
+#temp and feeling temp are pretty similar. There are some minor 
+#differences, however. The feeling temp tends to result in a higher 
+#number of bike rentals and feeling temperature is slightly more predictive of 
+#bike rentals based on the r squared value. 
+#It's also worth mentioning that increasing temperatutre only helps bike rentals up to a point, 
+#after it reaches ~24 the marginal benefit of higher temperature starts to plateu and even decline. 
+#This trend is clear in the plot below. 
+
+ggplot (bike, aes( x= temp, y = cnt, colour = cnt))+geom_point()+geom_smooth()+xlab("Temperature") + ylab ("Total Count")+ggtitle("Total Count of Bikes used depending on Temperature")
+```
+ - **4c.** Fit another linear model predicting total daily bike rentals from year. Write the linear model, interpret the coefficients associated with different years.
+ 
+```{r}
+
+yearmodel <- lm(bike$cnt ~ bike$yr)
+print(yearmodel)
+
+#Given that the regression has a positive slope, 
+#we can see that there has been an increase in bike rentals from 2011 to 2012. 
+#Based on the slope, 2012 had 2194 more bike rentals than 2011. 
+
+```
+
+ 
+ - **4d.**  Fit a model predicting total daily bike rentals from season, year, whether the day is holiday or not, whether the day is a workingday or not, the weather category, temperature, feeling temperature, humidity and windspeed, as well as the interaction between at least one numerical and one categorical variable.
+```{r}
+bike$season=factor(bike$season,levels=c("spring", "summer", "fall", "winter"), ordered=FALSE)
+
+multipleregression <- lm(cnt ~ season + yr + holiday +
+      factor(weathersit) + temp + atemp + hum + windspeed + season*temp, data = bike)
+summary(multipleregression)
+
+```
+
+ - **4e.** Interpret slope coefficients associated with two of the interacting variables in your model in context of the data. Note: If one of these is categorical with multiple levels, make sure you interpret all of the slope coefficients associated with the levels of the variable.
+
+Your answer here: 
+#The results of my regression makes a lot of sense. Looks like the biggest factor that can increase bike rentals is if the season is fall and not other seasons. Another factor that impacts bike sales negatively is if it's snowing. The impact of the interaction between season and temperature on bike rentals was not that significant in my regression.
+
+
+- **4f.**. Based on the model you found in the previous questions, discuss what makes for a good day to bike in DC (as measured by rental bikes being more in demand).
+
+Your answer here: 
+#A good day is a day in the fall without snow. These two have the biggest impact according to my regression. 
+
+# Flights that Departed NYC in 2013
+
+This package contains information about all flights that departed from NYC (e.g. EWR, JFK and LGA) in 2013: 336,776 flights in total. To help understand what causes delays, it also includes a number of other useful datasets. 
+Source: [nycflights13: Flights that Departed NYC in 2013](https://cran.r-project.org/web/packages/nycflights13/index.html)
+
+This package provides the following data tables. 
+
+| Table name    | Description 
+|:--------|:-------------------------------------------------------------
+|   `flights`| all flights that departed from NYC in 2013
+|   `weather`| hourly meterological data for each airport
+|   `planes`| construction information about each plane
+|   `airports`| airport names and locations
+|   `airlines`| translation between two letter carrier codes and names
+
+Here's the code book for `flights` table:
+
+| Variable name | Description 
+|:--------|:-------------------------------------------------------------
+|`year`,`month`,`day`| Date of departure
+|`dep_time`,`arr_time`| Actual departure and arrival times (format HHMM or HMM), local tz.
+|`sched_dep_time`,`sched_arr_time`| Scheduled departure and arrival times (format HHMM or HMM), local tz.
+|`dep_delay`,`arr_delay`|  Departure and arrival delays, in minutes. Negative times represent early departures/arrivals.
+|`hour`,`minute`| Time of scheduled departure broken into hour and minutes.
+|`carrier`| Two letter carrier abbreviation. See airlines() to get name
+|`tailnum`| Plane tail number
+|`flight`| Flight number
+|`origin`,`dest`| Origin and destination. See airports() for additional metadata.
+|`air_time`| Amount of time spent in the air, in minutes
+|`distance`| Distance between airports, in miles
+|`time_hour`| Scheduled date and hour of the flight as a POSIXct date. Along with origin, can be used to join flights data to weather data.
+
+Here's the code book for `airlines` table:
+
+| Variable name | Description 
+|:--------|:-------------------------------------------------------------
+|`carrier` | Two letter abbreviation
+|`name` | Full name
+
+Here's the code book for `planes` table:
+
+| Variable name | Description 
+|:--------|:-------------------------------------------------------------
+|`tailnum`|Tail number
+|`year`|Year manufactured
+|`type`|Type of plane
+|`manufacturer`,`model`|Manufacturer and model
+|`engines`,`seats`|Number of engines and seats
+|`speed`|Average cruising speed in mph
+|`engine`|Type of engine
+
+## Load data
+The five tables are provided by package `nycflights13`. The following codes load the data tables
+```{r message=FALSE, warning=FALSE}
+if (!require("nycflights13")) install.packages("nycflights13", repos = "http://cran.us.r-project.org")
+library(nycflights13)
+library(tibble)
+library(tidyverse)
+library(dplyr)
+```
+- **5a.**   Which airlines have the most flights departing from NYC airports in 2013? Make a table that lists these in descending order of frequency and shows the number of flights for each airline. In your narrative mention the names of the airlines as well. *Hint:* You can join the summary table with the `airlines` dataset to look up the airline name based on `carrier` code. 
+
+```{r eval=T}
+flights %>% count(carrier,sort=TRUE) %>% head(5)
+#The biggest airline coming out of NYC airports is United Airlines at 58665, followed by Jet Blue, Atlantic, Delta, and American. 
+```
+
+
+ - **5b.**   Consider only flights that have non-missing arrival delay information.  Use `summarise` and `group_by` to find which carrier had the highest mean arrival delay? Which carrier had the lowest mean arrival delay? Make sure that your answer includes the name of the carrier and the calculated mean delay. 
+
+```{r}
+flights %>%
+  filter(!is.na(arr_delay)) %>%
+  group_by(carrier) %>%
+  summarise(mean_arr_delay = mean(arr_delay)) %>%
+  arrange(desc(mean_arr_delay)) %>%
+  inner_join(airlines, by = "carrier") %>%
+  slice(c(1, n()))
+
+```
+
+- **5c.**Find the flight with the longest air time. How long is this flight? Join with the `planes` table and find out what city did it fly to? How many seats does the plane that flew this flight have?
+
+```{r}
+flights %>%
+  arrange(desc(air_time)) %>%
+  slice(1) %>%
+  select(air_time, dest, tailnum) %>%
+  inner_join(planes, by = "tailnum") %>%
+  select(air_time, dest, tailnum, seats)
+```
+
